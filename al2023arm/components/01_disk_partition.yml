@@ -1,0 +1,63 @@
+name: PartitioningDisk
+description: Disk Partitioning for AL2023 arm
+schemaVersion: 1.0
+
+phases:
+  - name: build
+    steps:
+      - name: InstallUtilities
+        action: ExecuteBash
+        inputs:
+          commands:
+            - |
+              set -x
+
+              echo "Setup Proxy for Current user"
+              . /etc/profile.d/linux_enable_proxy.sh
+
+              echo "Download utilities for the partitioning"
+              yum install parted bc rsync git -y
+        
+      - name: PartitioningDisk
+        action: ExecuteBash
+        inputs:
+          commands:
+            - |
+              set -x
+
+              echo "Setup Proxy for current user"
+              . /etc/profile.d/linux_enable_proxy.sh
+
+              echo "Installing lvm2 package"
+              yum -y install lvm2
+
+              echo "Download disk partition script"
+              cd /opt
+
+              GITHUB_TOKEN=$(aws secretsmanager get-secret-value --secret-id SOE/Github/ServiceAccount/Token --query SecretString --output text --region ap-southeast-2)
+
+              git clone https://acoe_github_pubsoe:${GITHUB_TOKEN}@github.source.internal.cba/CloudServices/ansible-linux-soe-build.git
+
+              echo "Deploying Partition script"
+
+              cd ansible-linux-soe-build/al2023
+              chmod +x disk-partition-al2023arm-lvm.sh
+              ./disk-partition-al2023arm-lvm.sh
+
+
+              result=$?
+              if [ "$result" != "0" ]; then
+                echo "The partition process failed, check the Imagebuilder pipeline logs for details!"
+                exit 1
+              fi
+
+  - name: validate
+    steps:
+      - name: Validate
+        action: ExecuteBash
+        inputs:
+          commands:
+            - |
+              set -x
+
+              parted /dev/xvda print

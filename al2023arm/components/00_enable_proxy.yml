@@ -1,0 +1,78 @@
+name: EnableProxy
+description: Setup Proxy variable and enable it for all users
+schemaVersion: 1.0
+
+phases:
+  - name: build
+    steps:
+      - name: EnablingPROXY
+        action: ExecuteBash
+        inputs:
+          commands:
+            - |
+              set -x
+
+              acct=$(aws sts get-caller-identity --query Account --output text)
+              if [ $acct -eq 934589207066 ]; then no_proxy=$(aws ssm get-parameter --name arn:aws:ssm:ap-southeast-2:118954792064:parameter/CNS/resources/no_proxy --query "Parameter.Value"); else no_proxy=$(aws ssm get-parameter --name arn:aws:ssm:ap-southeast-2:404140422348:parameter/CNS/resources/no_proxy --query "Parameter.Value"); fi
+              echo $no_proxy
+              cat > /etc/profile.d/linux_enable_proxy.sh << "EOF"
+              EOF
+              echo export no_proxy=$no_proxy >> /etc/profile.d/linux_enable_proxy.sh
+              cat >> /etc/profile.d/linux_enable_proxy.sh << "EOF"
+              export NO_PROXY=${no_proxy}
+              export http_proxy=http://app-proxy:3128
+              export https_proxy=${http_proxy}
+              export HTTP_PROXY=${http_proxy}
+              export HTTPS_PROXY=${http_proxy}
+              EOF
+
+      - name: ConfigurePATH
+        action: ExecuteBash
+        inputs:
+          commands:
+             - cat > /etc/profile.d/linux_configure_path.sh << "EOF"
+             - # Configure PATH for all users
+             - export PATH=/usr/local/bin:$PATH
+             - EOF
+
+  - name: validate
+    steps:
+      - name: ValidateProxy
+        action: ExecuteBash
+        inputs:
+          commands:
+            - echo "Confirm linux_enable_proxy.sh file exists"
+            - cat /etc/profile.d/linux_enable_proxy.sh
+      - name: ValidatePATH
+        action: ExecuteBash
+        inputs:
+          commands:
+            - echo "Confirm linux_configure_path.sh file exists"
+            - cat /etc/profile.d/linux_configure_path.sh
+
+  - name: test
+    steps:
+      - name: TestProxy
+        action: ExecuteBash
+        inputs:
+          commands:
+            - |
+              set -x
+              echo "Confirm linux_enable_proxy.sh file exists"
+              if [ -f /etc/profile.d/linux_enable_proxy.sh ]; then
+                echo "File exists."
+              else
+                echo "File does not exists"
+              fi
+      - name: TestPATH
+        action: ExecuteBash
+        inputs:
+          commands:
+            - |
+              set -x
+              echo "Confirm linux_configure_path.sh file exist"
+              if [ -f /etc/profile.d/linux_configure_path.sh ]; then
+                 echo "File exists."
+              else
+                 echo "File does not exist"
+              fi        
