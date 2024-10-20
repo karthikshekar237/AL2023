@@ -1,5 +1,4 @@
 from aws_cdk import (
-    # Duration,
     Stack,
     aws_imagebuilder as imagebuilder
 )
@@ -10,8 +9,6 @@ from configparser import ConfigParser
 import json
 
 def content_of_the_file_and_description(dir, componentFileName):
-    # This function is getting contents of the files from the components directory into a variable
-    # for creating component module in EC2 Image Builder service
     with open(os.path.join(dir, componentFileName)) as file:
         content = file.read()
         content_as_list = content.split('\n')
@@ -41,72 +38,54 @@ def content_of_the_file_and_description(dir, componentFileName):
         return content, description
 
 def get_all_components(client):
-    # Due to an AWS API limit, the server-side filter is also affected by the maximum 25 record per call,
-    # so we get all the resources and use the outputs for search
     all_components = []
     next_token = None
-
     while True:
         if next_token:
             response = client.list_components(nextToken=next_token)
         else:
             response = client.list_components()
-
         all_components.extend(response.get('componentVersionList', []))
         next_token = response.get('nextToken')
-
         if not next_token:
             break
-
     return all_components
 
 def get_all_recipes(client):
-    # AWS API limit that the server-side filter is also affected by the maximum 23 record per call,
-    # so we get all the resources and use the outputs for search
     all_recipes = []
     next_token = None
-
     while True:
         if next_token:
             response = client.list_image_recipes(nextToken=next_token)
         else:
             response = client.list_image_recipes()
-
         all_recipes.extend(response.get('imageRecipeSummaryList', []))
         next_token = response.get('nextToken')
-
         if not next_token:
             break
-
     return all_recipes
 
 def read_comp_config(config_file):
     config = {}
     current_env = None
-
     with open(config_file, 'r') as file:
         for line in file:
             line = line.strip()
             if not line or line.startswith('#'):
                 continue
-
             if line.startswith('[') and line.endswith(']'):
                 current_env = line[1:-1]
                 config[current_env] = []
             else:
                 if current_env:
                     config[current_env].append(line)
-
     return config
 
 def auto_version_components(client, componentName):
     print(f"Auto_version-components: looking for the component {componentName}")
-
     current_version = 0
     final_version_str = '0.0.0'
-
     components = get_all_components(client)
-
     for component in components:
         if component['name'] == componentName:
             print(f"Auto_version_components: found the existing component {component['arn']}")
@@ -114,19 +93,14 @@ def auto_version_components(client, componentName):
             new_version_int = current_version + 1
             final_version_str = f'0.0.{new_version_int}'
             break
-
     print(f"Auto_version_components: returning version {final_version_str}")
-
     return final_version_str
 
 def auto_version_recipes(client, recipeName):
     print(f"Auto_version_recipes: looking for the recipe {recipeName}")
-
     current_version = 0
     final_version_str = '0.0.0'
-
     recipes = get_all_recipes(client)
-
     for recipe in recipes:
         if recipe['name'] == recipeName:
             recipe_response = client.get_image_recipe(imageRecipeArn=recipe['arn'])
@@ -135,12 +109,10 @@ def auto_version_recipes(client, recipeName):
             new_version_int = current_version + 1
             final_version_str = f'0.0.{new_version_int}'
             break
-
     print(f"Auto_version_recipes: returning version {final_version_str}")
-
     return final_version_str
 
-class Al2023ArmStack(Stack):
+class Al2023Stack(Stack):
     def __init__(self, scope: Construct, construct_id: str, branch, workspace, **kwargs) -> None:
         super().__init__(scope, construct_id, **kwargs)
 

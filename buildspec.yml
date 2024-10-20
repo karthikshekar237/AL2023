@@ -13,6 +13,8 @@ phases:
         branch=${branch,,}
         echo "Workspace: $workspace"
         echo "Branch: $branch"
+        
+        # Terminate the job if an incorrect branch is used in a workspace
         if ([ $branch == "master" ] || [ $branch == "release" ]) && [ $workspace == "soe_nonprod" ]; then
           echo "You are running this CodeBuild job in Non-Production workspace with 'master' or 'release' branch, which is NOT ALLOWED. Terminating CodeBuild job."
           exit 1
@@ -20,6 +22,8 @@ phases:
           echo "You are running this CodeBuild job in Production workspace with a branch other than 'master' or 'release', which is NOT ALLOWED. Terminating CodeBuild job."
           exit 1
         fi
+
+        # Install necessary tools and dependencies
         npm config set registry https://artifactory.internal.cba/artifactory/api/npm/npm/
         npm install -g python --registry https://artifactory.internal.cba/artifactory/api/npm/npm/
         npm install aws-cdk -g --registry https://artifactory.internal.cba/artifactory/api/npm/npm/
@@ -32,7 +36,28 @@ phases:
     commands:
       - |
         set -x
-        cd al2023arm
+        
+        # Determine the platform type from config.ini
+        platform=$(python3 <<EOF
+import configparser
+config = configparser.ConfigParser()
+config.read('config.ini')
+print(config.get('$workspace', 'instance_types'))
+EOF
+        )
+
+        if echo "$platform" | grep -q "t4g"; then
+          echo "ARM architecture detected, proceeding with ARM-based AMI build."
+          cd al2023arm
+        elif echo "$platform" | grep -q "t2"; then
+          echo "x86 architecture detected, proceeding with x86-based AMI build."
+          cd al2023x86
+        else
+          echo "Unsupported platform: $platform"
+          exit 1
+        fi
+
+        # Install Python dependencies
         python -m pip install -r requirements.txt --index-url https://artifactory.internal.cba/api/pypi/org.python.pypi/simple/
         python3 --version
 
@@ -95,7 +120,7 @@ EOF
           aminame=$(basename $aminame)
           echo "Updating the AMI info and version..."
           update_config_value "$workspace" "amiid" $amiid
-          aminame="CNS-AWS-AL2023-ARM"
+          aminame="CNS-AWS-AL2023-${platform^^}"
           update_config_value "$workspace" "aminame" $aminame
         else
           amiid=$(read_config_value "$workspace" "amiid")
