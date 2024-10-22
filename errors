@@ -1,0 +1,9 @@
+
+[Container] 2024/10/22 23:26:04.888493 Running on CodeBuild On-demand
+[Container] 2024/10/22 23:26:04.888512 Waiting for agent ping
+[Container] 2024/10/22 23:26:05.090072 Waiting for DOWNLOAD_SOURCE
+[Container] 2024/10/22 23:26:07.008012 Phase is DOWNLOAD_SOURCE
+[Container] 2024/10/22 23:26:07.056022 CODEBUILD_SRC_DIR=/codebuild/output/src928024378/src/github.source.internal.cba/CloudServices/aws-cdk-soe-al2023
+[Container] 2024/10/22 23:26:07.056573 YAML location is /codebuild/output/src928024378/src/github.source.internal.cba/CloudServices/aws-cdk-soe-al2023/al2023arm/buildspec.yml
+[Container] 2024/10/22 23:26:07.060347 Phase complete: DOWNLOAD_SOURCE State: FAILED
+[Container] 2024/10/22 23:26:07.060372 Phase context status code: YAML_FILE_ERROR Message: could not find expected ':' at line 42
