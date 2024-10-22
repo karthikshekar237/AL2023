@@ -10,15 +10,15 @@ phases:
         region=ap-southeast-2
         branch=$CODEBUILD_SOURCE_VERSION
         workspace=$WORKSPACE
-        branch="${branch,,}"   # Fixed: Wrap the command in quotes to avoid YAML colon issues
+        branch="${branch,,}"   # Ensure the command is wrapped in quotes
         echo "Workspace: $workspace"
         echo "Branch: $branch"
         
         # Terminate the job if an incorrect branch is used in a workspace
-        if ([ $branch == "master" ] || [ $branch == "release" ]) && [ $workspace == "soe_nonprod" ]; then
+        if ([ "$branch" == "master" ] || [ "$branch" == "release" ]) && [ "$workspace" == "soe_nonprod" ]; then
           echo "You are running this CodeBuild job in Non-Production workspace with 'master' or 'release' branch, which is NOT ALLOWED. Terminating CodeBuild job."
           exit 1
-        elif ([ $branch != "master" ] && [ $branch != "release" ]) && [ $workspace == "soe_prod" ]; then
+        elif ([ "$branch" != "master" ] && [ "$branch" != "release" ]) && [ "$workspace" == "soe_prod" ]; then
           echo "You are running this CodeBuild job in Production workspace with a branch other than 'master' or 'release', which is NOT ALLOWED. Terminating CodeBuild job."
           exit 1
         fi
@@ -135,39 +135,39 @@ EOF
         echo "++++++++++++++++++++"
         echo "The CDK action is set to $ACTION"
         echo "+++++++++++++++++++++"
-        if [ $ACTION == "deploy" ]; then
+        if [ "$ACTION" == "deploy" ]; then
           echo "Deploying ImageBuilder pipeline through CloudFormation Stack"
-          cdk deploy -c branch=$branch -c workspace=$workspace
+          cdk deploy -c branch="$branch" -c workspace="$workspace"
           sleep 60
 
           imagepipelineName=$(read_config_value "$workspace" "imagepipelinename")
-          imagepipelineName=$(echo "${imagepipelineName}${branch}")
-          pipelinearn=$(get_pipeline "${imagepipelineName}")
-          if [ "${pipelinearn}" == "null" ] || [ -z "${pipelinearn}" ]; then
+          imagepipelineName="${imagepipelineName}${branch}"
+          pipelinearn=$(get_pipeline "$imagepipelineName")
+          if [ "$pipelinearn" == "null" ] || [ -z "$pipelinearn" ]; then
             echo "Pipeline not found: $pipelinearn"
             exit 1
           fi
           echo "Starting the ImageBuilder pipeline $pipelinearn"
-          imageBuildVersionArn=$(aws imagebuilder start-image-pipeline-execution --image-pipeline-arn ${pipelinearn} --region $region --query 'imageBuildVersionArn' --output text)
-          amiState=$(aws imagebuilder get-image --image-build-version-arn ${imageBuildVersionArn} --region $region --query 'image.state.status' --output text)
+          imageBuildVersionArn=$(aws imagebuilder start-image-pipeline-execution --image-pipeline-arn "$pipelinearn" --region $region --query 'imageBuildVersionArn' --output text)
+          amiState=$(aws imagebuilder get-image --image-build-version-arn "$imageBuildVersionArn" --region $region --query 'image.state.status' --output text)
 
-          while [ "${amiState}" != "AVAILABLE" ] && [ "${amiState}" != "FAILED" ]; do
+          while [ "$amiState" != "AVAILABLE" ] && [ "$amiState" != "FAILED" ]; do
             echo 'Waiting for the ImageBuilder pipeline to finish....'
             sleep 300
-            amiState=$(aws imagebuilder get-image --image-build-version-arn ${imageBuildVersionArn} --region $region --query 'image.state.status' --output text)
+            amiState=$(aws imagebuilder get-image --image-build-version-arn "$imageBuildVersionArn" --region $region --query 'image.state.status' --output text)
           done
 
-          if [ "${amiState}" == "AVAILABLE" ]; then
-            amiId=$(aws imagebuilder get-image --image-build-version-arn ${imageBuildVersionArn} --region $region --query 'image.outputResources.amis[0].image' --output text)
-            amiName=$(aws ec2 describe-images --image-ids $amiId --region $region --query 'Images[0].Name' --output text)
+          if [ "$amiState" == "AVAILABLE" ]; then
+            amiId=$(aws imagebuilder get-image --image-build-version-arn "$imageBuildVersionArn" --region $region --query 'image.outputResources.amis[0].image' --output text)
+            amiName=$(aws ec2 describe-images --image-ids "$amiId" --region $region --query 'Images[0].Name' --output text)
             echo "The pipeline completed! The output AMI is: ${amiId} (${amiName})"
           else
-            error=$(aws imagebuilder get-image --image-build-version-arn ${imageBuildVersionArn} --region $region --query 'image.state.reason' --output text)
+            error=$(aws imagebuilder get-image --image-build-version-arn "$imageBuildVersionArn" --region $region --query 'image.state.reason' --output text)
             echo "The pipeline failed due to: $error"
           fi
-        elif [ $ACTION == "destroy" ]; then
+        elif [ "$ACTION" == "destroy" ]; then
           echo "Destroying ImageBuilder pipeline through CloudFormation Stack"
-          cdk destroy -c branch=$branch -c workspace=$workspace --force
+          cdk destroy -c branch="$branch" -c workspace="$workspace" --force
         else
           echo "The ACTION environment variable is set wrongly."
         fi
