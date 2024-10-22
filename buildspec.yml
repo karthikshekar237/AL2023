@@ -10,7 +10,7 @@ phases:
         region=ap-southeast-2
         branch=$CODEBUILD_SOURCE_VERSION
         workspace=$WORKSPACE
-        branch=${branch,,}
+        branch="${branch,,}"   # Fixed: Wrap the command in quotes to avoid YAML colon issues
         echo "Workspace: $workspace"
         echo "Branch: $branch"
         
