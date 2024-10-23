@@ -14,11 +14,11 @@ phases:
         echo "Workspace: $workspace"
         echo "Branch: $branch"
         if ([ $branch == "master" ] || [ $branch == "release" ]) && [ $workspace == "soe_nonprod" ]; then
-          echo "You are running this CodeBuild job in Non-Production workspace with 'master' or 'release' branch, which is NOT ALLOWED. Terminating CodeBuild job."
-          exit 1
+                echo "You are running this Codebuild job in Non Production workspace with "master" or "release" branch which is NOT ALLOWED. Terminating Codebuild Job"
+                exit 1
         elif ([ $branch != "master" ] && [ $branch != "release" ]) && [ $workspace == "soe_prod" ]; then
-          echo "You are running this CodeBuild job in Production workspace with a branch other than 'master' or 'release', which is NOT ALLOWED. Terminating CodeBuild job."
-          exit 1
+                echo "You are running this Codebuild job in Production workspace with branch other than "master" or "release" which is NOT ALLOWED. Terminating Codebuild Job"
+                exit 1
         fi
         npm config set registry https://artifactory.internal.cba/artifactory/api/npm/npm/
         npm install -g python --registry https://artifactory.internal.cba/artifactory/api/npm/npm/
@@ -27,7 +27,6 @@ phases:
         pip install --index-url https://artifactory.internal.cba/api/pypi/org.python.pypi/simple/ boto3
         pip install --index-url https://artifactory.internal.cba/api/pypi/org.python.pypi/simple/ boto
         pip install --index-url https://artifactory.internal.cba/api/pypi/org.python.pypi/simple/ pygit2
-
   build:
     commands:
       - |
@@ -35,114 +34,108 @@ phases:
         cd al2023arm
         python -m pip install -r requirements.txt --index-url https://artifactory.internal.cba/api/pypi/org.python.pypi/simple/
         python3 --version
-
-        # Read configured value from the config.ini file. Syntax: read_config_value <workspace> <name of parameter>
+        # Read configured value from the config.ini file. Sytnax: read_config_value <workspace> <name of parameter>
         read_config_value() {
-          local value=$(python3 <<EOF
-import configparser
-config = configparser.ConfigParser()
-config.read('config.ini')
-print(config.get('$1', '$2'))
-EOF
-          )
-          echo $value
+        local value=$(python3 <<EOF
+        import configparser
+        config = configparser.ConfigParser()
+        config.read('config.ini')
+        print(config.get('$1', '$2'))
+        EOF
+        )
+        echo $value
         }
-
-        # Update the config.ini file. Syntax: update_config_value <workspace> <name of parameter> <new value>
+        # Update the config.ini file. Sytnax: update_config_value <workspace> <name of parameter> <new value>
         update_config_value() {
-          local value=$(python3 <<EOF
-import configparser
-config = configparser.ConfigParser()
-config.read('config.ini')
-config.set('$1', '$2', '$3')
-with open('config.ini', 'w') as configfile:
-    config.write(configfile)
-EOF
-          )
+        local value=$(python3 <<EOF
+        import configparser
+        config = configparser.ConfigParser()
+        config.read('config.ini')
+        config.set('$1','$2','$3')
+        with open('config.ini', 'w') as configfile:
+                config.write(configfile)
+        EOF
+        )
         }
-
         # Get the pipeline by name. Parameter: pipeline name
         get_pipeline() {
-          pipeline=$1
-          next_token=null
-          pipelinearn=""
-          outputs=""
-          outputs=$(aws imagebuilder list-image-pipelines --filters "name=name,values=${pipeline}" --region $region)
-          pipelinearn=$(echo "${outputs}" | jq -r '.imagePipelineList[].arn')
-          next_token=$(echo "${outputs}" | jq -r '.nextToken')
-
-          while { [ "${pipelinearn}" == "null" ] || [ -z "${pipelinearn}" ]; } && [ "${next_token}" != "null" ]; do
-            outputs=$(aws imagebuilder list-image-pipelines --filters "name=name,values=${pipeline}" --next-token="${next_token}" --region $region)
-            pipelinearn=$(echo "${outputs}" | jq -r '.imagePipelineList[].arn')
-            next_token=$(echo "${outputs}" | jq -r '.nextToken')
-          done
-          echo $pipelinearn
+                pipeline=$1
+                next_token=null
+                pipelinearn=""
+                outputs=""
+                outputs=$(aws imagebuilder list-image-pipelines --filters "name=name, values=${pipeline}" --region $region)
+                pipelinearn=$(echo "${outputs}" | jq -r '.imagePipelineList[].arn')
+                next_token=$(echo "${outputs}" | jq -r '.nextToken')
+                while { [ "${pipelinear}" == "null" ] || [ -z "${pipelinearn}" ]; }  && [ "${next_token}" != "null" ]; do
+                        outputs=$(aws imagebuilder list-image-pipelines --filters "name=name, values=${pipeline}" --next-token="${next_token}" --region $region)
+                        
+                        pipelinearn=$(echo "${outputs}" | jq -r '.imagePipelineList[].arn')
+                        next_token=$(echo "${outputs}" | jq -r '.nextToken')
+                done
+                echo $pipelinearn
         }
-
         amiid=""
         aminame=""
-
+        
         autoupdate=$(read_config_value "$workspace" "autoupdate")
         autoupdate=$(echo $autoupdate | sed 's/.*/\L&/g')
         if [ "$autoupdate" == "yes" ]; then
-          # If the AMI ID comes from the parameter store
-          echo "Autoupdate is: $autoupdate"
-          parameterpath=$(read_config_value "$workspace" "parameterpath")
-          cli="aws ssm get-parameters --query 'Parameters[0].[Value]' --output text --region $region --names $parameterpath"
-          echo "CLI: $cli"
-          amiid=$(eval $cli)
-          aminame=$(aws ec2 describe-images --image-ids $amiid --query 'Images[0].Name' --output text --region $region)
-          aminame=$(basename $aminame)
-          echo "Updating the AMI info and version..."
-          update_config_value "$workspace" "amiid" $amiid
-          aminame="CNS-AWS-AL2023-ARM"
-          update_config_value "$workspace" "aminame" $aminame
+                # If the ami id come from the parameter store
+                echo "Authupdate is: $autoupdate"
+                parameterpath=$(read_config_value "$workspace" "parameterpath")
+                cli="aws ssm get-parameters --query 'Parameters[0].[Value]' --output text --region $region --names $parameterpath"
+                echo "CLI: $cli"
+                amiid=$(eval $cli)
+                aminame=$(aws ec2 describe-images --image-ids $amiid --query 'Images[0].Name' --output text --region $region)
+                aminame=$(basename $aminame)
+                echo "Updating the AMI infoversion....."
+                update_config_value "$workspace" "amiid" $amiid
+                aminame="CNS-AWS-AL2023-ARM"
+                update_config_value "$workspace" "aminame" $aminame
         else
-          amiid=$(read_config_value "$workspace" "amiid")
-          aminame=$(read_config_value "$workspace" "aminame")
+                amiid=$(read_config_value "$workspace" "amiid")
+                aminame=$(read_config_value "$workspace" "aminame")
         fi
-
         echo "workspace=$workspace"
         echo "autoupdate=$autoupdate"
         echo "amiid=$amiid"
         echo "aminame=$aminame"
-
-        echo "++++++++++++++++++++"
-        echo "The CDK action is set to $ACTION"
-        echo "+++++++++++++++++++++"
+        
+        echo ""
+        echo "++++++++++++++++++++++++++++++++++"
+        echo " The cdk action is set to $ACTION"
+        echo "++++++++++++++++++++++++++++++++++"
         if [ $ACTION == "deploy" ]; then
-          echo "Deploying ImageBuilder pipeline through CloudFormation Stack"
+          echo "DEPLOYING ImageBuilder pipeline through CloudFormation Stack"
           cdk deploy -c branch=$branch -c workspace=$workspace
           sleep 60
-
+          # Need to use the same way in the CDK LinuxStack class to generate the pipeline name to make sure the names are same and correct
           imagepipelineName=$(read_config_value "$workspace" "imagepipelinename")
           imagepipelineName=$(echo "${imagepipelineName}${branch}")
           pipelinearn=$(get_pipeline "${imagepipelineName}")
           if [ "${pipelinearn}" == "null" ] || [ -z "${pipelinearn}" ]; then
-            echo "Pipeline not found: $pipelinearn"
-            exit 1
+                echo "Pipeline not found: $pipelinearn"
+                exit 1
           fi
           echo "Starting the ImageBuilder pipeline $pipelinearn"
           imageBuildVersionArn=$(aws imagebuilder start-image-pipeline-execution --image-pipeline-arn ${pipelinearn} --region $region --query 'imageBuildVersionArn' --output text)
           amiState=$(aws imagebuilder get-image --image-build-version-arn ${imageBuildVersionArn} --region $region --query 'image.state.status' --output text)
-
           while [ "${amiState}" != "AVAILABLE" ] && [ "${amiState}" != "FAILED" ]; do
-            echo 'Waiting for the ImageBuilder pipeline to finish....'
-            sleep 300
-            amiState=$(aws imagebuilder get-image --image-build-version-arn ${imageBuildVersionArn} --region $region --query 'image.state.status' --output text)
+                echo "Waiting for the Imagebuilder pipeline finish..."
+                sleep 300 
+                amiState=$(aws imagebuilder get-image --image-build-version-arn ${imageBuildVersionArn} --region $region --query 'image.state.status' --output text)
           done
-
           if [ "${amiState}" == "AVAILABLE" ]; then
-            amiId=$(aws imagebuilder get-image --image-build-version-arn ${imageBuildVersionArn} --region $region --query 'image.outputResources.amis[0].image' --output text)
-            amiName=$(aws ec2 describe-images --image-ids $amiId --region $region --query 'Images[0].Name' --output text)
-            echo "The pipeline completed! The output AMI is: ${amiId} (${amiName})"
+                amiId=$(aws imagebuilder get-image --image-build-version-arn ${imageBuildVersionArn} --region $region --query 'image.outputResources.amis[0].image' --output text)
+                amiName=$(aws ec2 describe-images --image-ids $amiId --region $region --query 'Images[0].Name' --output text)
+                echo "The pipeline completed! The output AMI is: ${amiId}(${amiName})"
           else
-            error=$(aws imagebuilder get-image --image-build-version-arn ${imageBuildVersionArn} --region $region --query 'image.state.reason' --output text)
-            echo "The pipeline failed due to: $error"
+                error=$(aws imagebuilder get-image --image-build-version-arn ${imageBuildVersionArn} --region $region --query 'image.state.reason' --output text)
+                echo "The pipeline failed due to : $error"
           fi
         elif [ $ACTION == "destroy" ]; then
-          echo "Destroying ImageBuilder pipeline through CloudFormation Stack"
+          echo "DESTROYING ImageBuilder pipeline through CloudFormation Stack"
           cdk destroy -c branch=$branch -c workspace=$workspace --force
         else
-          echo "The ACTION environment variable is set wrongly."
+          echo "The ACTION environment variable is set WRONGLY"
         fi
